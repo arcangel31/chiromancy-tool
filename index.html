@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hand Chiromancy Line Mapper</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection"></script>
     <style>
         * {
             margin: 0;
@@ -38,13 +36,44 @@
         }
 
         .header h1 {
-            font-size: 2.5em;
+            font-size: 2.2em;
             margin-bottom: 10px;
         }
 
         .header p {
-            font-size: 1.1em;
+            font-size: 1.05em;
             opacity: 0.9;
+        }
+
+        .mode-tabs {
+            display: flex;
+            background: #eee;
+        }
+
+        .mode-tab {
+            flex: 1;
+            padding: 14px;
+            text-align: center;
+            font-weight: 600;
+            cursor: pointer;
+            background: #eee;
+            color: #667;
+            border: none;
+            font-size: 1em;
+        }
+
+        .mode-tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .mode-panel {
+            display: none;
+        }
+
+        .mode-panel.active {
+            display: block;
         }
 
         .content {
@@ -103,6 +132,12 @@
             font-weight: 600;
         }
 
+        .control-group button.secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
         .control-group button:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
@@ -111,6 +146,8 @@
         .control-group button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
 
         .control-group input[type="file"]::file-selector-button {
@@ -153,6 +190,7 @@
             height: auto;
             background: #f9f9f9;
             cursor: crosshair;
+            touch-action: none;
         }
 
         .canvas-container {
@@ -161,6 +199,14 @@
             border-radius: 10px;
             text-align: center;
             position: relative;
+        }
+
+        #overlaySvg {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            pointer-events: none;
+            opacity: 0.85;
         }
 
         .status {
@@ -201,6 +247,52 @@
             width: 20px;
             height: 3px;
             border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .guide-card {
+            background: #f5f5f5;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 5px solid;
+        }
+
+        .guide-card h3 {
+            margin-bottom: 8px;
+            font-size: 1.15em;
+        }
+
+        .guide-card p {
+            font-size: 0.95em;
+            line-height: 1.5;
+            color: #444;
+        }
+
+        .guide-hand-wrap {
+            text-align: center;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 10px;
+        }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .slider-row label {
+            flex-shrink: 0;
+            width: 90px;
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .slider-row input[type="range"] {
+            flex: 1;
         }
 
         @media (max-width: 900px) {
@@ -214,105 +306,197 @@
     <div class="container">
         <div class="header">
             <h1>Hand Chiromancy Line Mapper</h1>
-            <p>Detectez et tracez les lignes de la main - Chiromancie digitale</p>
+            <p>Apprends ou sont les lignes, puis trace-les sur ta propre main</p>
         </div>
 
-        <div class="content">
-            <div class="section">
-                <h2>Controles</h2>
-                <div class="controls">
-                    <div class="control-group">
-                        <label>Charger une photo</label>
-                        <input type="file" id="imageInput" accept="image/*">
+        <div class="mode-tabs">
+            <button class="mode-tab active" data-mode="learn">Apprendre</button>
+            <button class="mode-tab" data-mode="trace">Tracer sur ma photo</button>
+        </div>
+
+        <div class="mode-panel active" id="panel-learn">
+            <div class="content" style="grid-template-columns: 1fr 1fr;">
+                <div class="section">
+                    <h2>Guide des lignes</h2>
+                    <div class="guide-card" style="border-left-color:#ff6b6b;">
+                        <h3 style="color:#ff6b6b;">Ligne de Vie</h3>
+                        <p>Part entre le pouce et l'index, encercle la base du pouce en descendant vers le poignet. C'est la ligne la plus proche du pouce.</p>
                     </div>
-
-                    <div class="control-group">
-                        <label>Couleur de dessin</label>
-                        <div class="color-picker">
-                            <div class="color-btn active" style="background: #ff0000;" data-color="#ff0000" title="Rouge"></div>
-                            <div class="color-btn" style="background: #0000ff;" data-color="#0000ff" title="Bleu"></div>
-                            <div class="color-btn" style="background: #00cc00;" data-color="#00cc00" title="Vert"></div>
-                            <div class="color-btn" style="background: #ffff00;" data-color="#ffff00" title="Jaune"></div>
-                            <div class="color-btn" style="background: #ff00ff;" data-color="#ff00ff" title="Magenta"></div>
-                            <div class="color-btn" style="background: #00ffff;" data-color="#00ffff" title="Cyan"></div>
-                            <div class="color-btn" style="background: #ffffff; border: 2px solid #999;" data-color="#ffffff" title="Blanc"></div>
-                        </div>
+                    <div class="guide-card" style="border-left-color:#4ecdc4;">
+                        <h3 style="color:#4ecdc4;">Ligne de Tete</h3>
+                        <p>Part du meme point de depart que la ligne de vie, mais traverse la paume horizontalement vers le bord oppose.</p>
                     </div>
-
-                    <div class="control-group">
-                        <label>Epaisseur du trait</label>
-                        <input type="range" id="brushSize" min="1" max="20" value="3">
-                        <small>Taille: <span id="brushSizeValue">3</span>px</small>
+                    <div class="guide-card" style="border-left-color:#5aa9a3;">
+                        <h3 style="color:#5aa9a3;">Ligne du Coeur</h3>
+                        <p>La ligne la plus haute, juste sous les doigts. Part du bord de la paume sous l'auriculaire et va vers la base de l'index ou du majeur.</p>
                     </div>
-
-                    <div class="control-group">
-                        <button id="detectBtn" disabled>Detecter les lignes</button>
+                    <div class="guide-card" style="border-left-color:#e0b400;">
+                        <h3 style="color:#e0b400;">Ligne de Destin</h3>
+                        <p>Verticale, part du poignet et monte vers le majeur. Absente ou discontinue chez beaucoup de gens.</p>
                     </div>
-
-                    <div class="control-group">
-                        <button id="clearBtn">Effacer le dessin</button>
+                </div>
+                <div class="section">
+                    <h2>Schema de reference</h2>
+                    <div class="guide-hand-wrap">
+                        <svg viewBox="0 0 300 380" width="100%" style="max-width:340px;">
+                            <path d="M 100 380 L 100 220 Q 60 210 55 170 Q 50 150 60 145 Q 72 140 80 155 L 90 190 L 90 60 Q 90 45 105 45 Q 120 45 120 60 L 120 170 L 125 40 Q 125 25 140 25 Q 155 25 155 40 L 158 170 L 163 45 Q 163 30 178 30 Q 193 30 193 45 L 195 175 L 205 90 Q 208 75 222 78 Q 234 82 231 97 L 215 200 Q 230 215 225 245 Q 220 300 200 380 Z"
+                                  fill="#fbe3d0" stroke="#c99a75" stroke-width="2"/>
+                            <path d="M 105 130 Q 75 160 78 210 Q 82 270 110 330" fill="none" stroke="#ff6b6b" stroke-width="4" stroke-linecap="round"/>
+                            <path d="M 100 145 Q 140 165 205 175" fill="none" stroke="#4ecdc4" stroke-width="4" stroke-linecap="round"/>
+                            <path d="M 90 105 Q 140 90 205 110" fill="none" stroke="#5aa9a3" stroke-width="4" stroke-linecap="round"/>
+                            <path d="M 145 340 Q 143 240 140 130" fill="none" stroke="#e0b400" stroke-width="4" stroke-linecap="round"/>
+                        </svg>
                     </div>
-
-                    <div class="control-group">
-                        <button id="exportBtn" disabled>Exporter l'image</button>
-                    </div>
-
-                    <div id="status" class="status" style="display:none;"></div>
-
-                    <div class="lines-legend">
-                        <h3 style="margin-bottom: 10px; color: #667eea;">Lignes principales</h3>
-                        <div class="legend-item">
-                            <div class="legend-color" style="background: #ff6b6b;"></div>
-                            <span>Ligne de Vie</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color" style="background: #4ecdc4;"></div>
-                            <span>Ligne de Tete</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color" style="background: #95e1d3;"></div>
-                            <span>Ligne du Coeur</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-color" style="background: #ffd93d;"></div>
-                            <span>Ligne de Destin</span>
-                        </div>
+                    <div class="status success" style="display:block; margin-top:15px;">
+                        Etudie bien ces 4 lignes, puis passe a l'onglet "Tracer sur ma photo" pour les reproduire sur ta propre main.
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div class="section">
-                <h2>Apercu</h2>
-                <div class="canvas-container">
-                    <canvas id="canvas"></canvas>
+        <div class="mode-panel" id="panel-trace">
+            <div class="content">
+                <div class="section">
+                    <h2>Controles</h2>
+                    <div class="controls">
+                        <div class="control-group">
+                            <label>Charger une photo</label>
+                            <input type="file" id="imageInput" accept="image/*">
+                        </div>
+
+                        <div class="control-group">
+                            <label>Couleur de dessin</label>
+                            <div class="color-picker">
+                                <div class="color-btn active" style="background: #ff6b6b;" data-color="#ff6b6b" title="Ligne de Vie"></div>
+                                <div class="color-btn" style="background: #4ecdc4;" data-color="#4ecdc4" title="Ligne de Tete"></div>
+                                <div class="color-btn" style="background: #5aa9a3;" data-color="#5aa9a3" title="Ligne du Coeur"></div>
+                                <div class="color-btn" style="background: #e0b400;" data-color="#e0b400" title="Ligne de Destin"></div>
+                                <div class="color-btn" style="background: #ff00ff;" data-color="#ff00ff" title="Magenta"></div>
+                                <div class="color-btn" style="background: #ffffff; border: 2px solid #999;" data-color="#ffffff" title="Blanc"></div>
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <label>Epaisseur du trait</label>
+                            <input type="range" id="brushSize" min="1" max="20" value="3">
+                            <small>Taille: <span id="brushSizeValue">3</span>px</small>
+                        </div>
+
+                        <div class="control-group">
+                            <button id="toggleGuideBtn" class="secondary" disabled>Afficher le gabarit-guide</button>
+                        </div>
+
+                        <div id="guideAdjust" style="display:none;">
+                            <div class="slider-row">
+                                <label>Position X</label>
+                                <input type="range" id="guideX" min="-100" max="300" value="20">
+                            </div>
+                            <div class="slider-row">
+                                <label>Position Y</label>
+                                <input type="range" id="guideY" min="-100" max="300" value="20">
+                            </div>
+                            <div class="slider-row">
+                                <label>Taille</label>
+                                <input type="range" id="guideScale" min="30" max="250" value="100">
+                            </div>
+                            <div class="slider-row">
+                                <label>Rotation</label>
+                                <input type="range" id="guideRotate" min="-45" max="45" value="0">
+                            </div>
+                            <div class="slider-row">
+                                <label>Opacite</label>
+                                <input type="range" id="guideOpacity" min="10" max="100" value="70">
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <button id="clearBtn">Effacer le dessin</button>
+                        </div>
+
+                        <div class="control-group">
+                            <button id="exportBtn" disabled>Exporter l'image</button>
+                        </div>
+
+                        <div id="status" class="status" style="display:none;"></div>
+
+                        <div class="lines-legend">
+                            <h3 style="margin-bottom: 10px; color: #667eea;">Lignes principales</h3>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #ff6b6b;"></div>
+                                <span>Ligne de Vie</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #4ecdc4;"></div>
+                                <span>Ligne de Tete</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #5aa9a3;"></div>
+                                <span>Ligne du Coeur</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #e0b400;"></div>
+                                <span>Ligne de Destin</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="status success" style="display:none;" id="helpText">
-                    Vous pouvez dessiner directement sur l'image avec votre souris
+
+                <div class="section">
+                    <h2>Apercu</h2>
+                    <div class="canvas-container" id="canvasContainer">
+                        <canvas id="canvas"></canvas>
+                        <svg id="overlaySvg" viewBox="0 0 300 380" width="260" style="display:none;">
+                            <path d="M 105 130 Q 75 160 78 210 Q 82 270 110 330" fill="none" stroke="#ff6b6b" stroke-width="5" stroke-linecap="round"/>
+                            <path d="M 100 145 Q 140 165 205 175" fill="none" stroke="#4ecdc4" stroke-width="5" stroke-linecap="round"/>
+                            <path d="M 90 105 Q 140 90 205 110" fill="none" stroke="#5aa9a3" stroke-width="5" stroke-linecap="round"/>
+                            <path d="M 145 340 Q 143 240 140 130" fill="none" stroke="#e0b400" stroke-width="5" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="status success" style="display:none;" id="helpText">
+                        Affiche le gabarit-guide, ajuste-le sur ta main, puis trace par-dessus. Le gabarit ne fait pas partie de l'export final.
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
+        document.querySelectorAll('.mode-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById('panel-' + tab.dataset.mode).classList.add('active');
+            });
+        });
+
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const imageInput = document.getElementById('imageInput');
-        const detectBtn = document.getElementById('detectBtn');
         const clearBtn = document.getElementById('clearBtn');
         const exportBtn = document.getElementById('exportBtn');
         const brushSizeInput = document.getElementById('brushSize');
         const brushSizeValue = document.getElementById('brushSizeValue');
         const statusDiv = document.getElementById('status');
         const helpText = document.getElementById('helpText');
+        const toggleGuideBtn = document.getElementById('toggleGuideBtn');
+        const overlaySvg = document.getElementById('overlaySvg');
+        const guideAdjust = document.getElementById('guideAdjust');
+        const guideX = document.getElementById('guideX');
+        const guideY = document.getElementById('guideY');
+        const guideScale = document.getElementById('guideScale');
+        const guideRotate = document.getElementById('guideRotate');
+        const guideOpacity = document.getElementById('guideOpacity');
 
         let isDrawing = false;
-        let currentColor = '#ff0000';
+        let currentColor = '#ff6b6b';
         let originalImage = null;
         let imageLoaded = false;
+        let guideVisible = false;
 
-        document.querySelectorAll('.color-btn').forEach(btn => {
+        document.querySelectorAll('#panel-trace .color-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('#panel-trace .color-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 currentColor = btn.dataset.color;
             });
@@ -335,7 +519,7 @@
                     ctx.drawImage(img, 0, 0);
                     originalImage = img;
                     imageLoaded = true;
-                    detectBtn.disabled = false;
+                    toggleGuideBtn.disabled = false;
                     exportBtn.disabled = false;
                     helpText.style.display = 'block';
                     showStatus('Image chargee avec succes!', 'success');
@@ -345,77 +529,75 @@
             reader.readAsDataURL(file);
         });
 
-        canvas.addEventListener('mousedown', (e) => {
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+
+        function startDraw(e) {
             if (!imageLoaded) return;
             isDrawing = true;
-            const rect = canvas.getBoundingClientRect();
+            const pos = getPos(e);
             ctx.beginPath();
-            ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-        });
+            ctx.moveTo(pos.x, pos.y);
+            e.preventDefault();
+        }
 
-        canvas.addEventListener('mousemove', (e) => {
+        function moveDraw(e) {
             if (!isDrawing || !imageLoaded) return;
-            const rect = canvas.getBoundingClientRect();
+            const pos = getPos(e);
             ctx.strokeStyle = currentColor;
             ctx.lineWidth = brushSizeInput.value;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
-            ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+            ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
-        });
-
-        canvas.addEventListener('mouseup', () => {
-            isDrawing = false;
-        });
-
-        detectBtn.addEventListener('click', async () => {
-            if (!originalImage) return;
-
-            showStatus('Detection en cours...', 'success');
-            detectBtn.disabled = true;
-
-            try {
-                ctx.drawImage(originalImage, 0, 0);
-                drawChiromancyLines();
-                showStatus('Lignes detectees! Vous pouvez les affiner au dessin', 'success');
-            } catch (error) {
-                showStatus('Erreur: ' + error.message, 'error');
-            } finally {
-                detectBtn.disabled = false;
-            }
-        });
-
-        function drawChiromancyLines() {
-            ctx.lineWidth = 2;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-
-            const w = canvas.width;
-            const h = canvas.height;
-
-            ctx.strokeStyle = '#ff6b6b';
-            ctx.beginPath();
-            ctx.arc(w * 0.3, h * 0.4, w * 0.25, Math.PI, 1.5 * Math.PI, true);
-            ctx.stroke();
-
-            ctx.strokeStyle = '#4ecdc4';
-            ctx.beginPath();
-            ctx.moveTo(w * 0.15, h * 0.5);
-            ctx.quadraticCurveTo(w * 0.5, h * 0.45, w * 0.85, h * 0.55);
-            ctx.stroke();
-
-            ctx.strokeStyle = '#95e1d3';
-            ctx.beginPath();
-            ctx.moveTo(w * 0.1, h * 0.3);
-            ctx.quadraticCurveTo(w * 0.5, h * 0.25, w * 0.9, h * 0.35);
-            ctx.stroke();
-
-            ctx.strokeStyle = '#ffd93d';
-            ctx.beginPath();
-            ctx.moveTo(w * 0.5, h * 0.6);
-            ctx.lineTo(w * 0.5, h * 0.2);
-            ctx.stroke();
+            e.preventDefault();
         }
+
+        function endDraw() {
+            isDrawing = false;
+        }
+
+        canvas.addEventListener('mousedown', startDraw);
+        canvas.addEventListener('mousemove', moveDraw);
+        canvas.addEventListener('mouseup', endDraw);
+        canvas.addEventListener('mouseleave', endDraw);
+        canvas.addEventListener('touchstart', startDraw, {passive:false});
+        canvas.addEventListener('touchmove', moveDraw, {passive:false});
+        canvas.addEventListener('touchend', endDraw);
+
+        toggleGuideBtn.addEventListener('click', () => {
+            guideVisible = !guideVisible;
+            overlaySvg.style.display = guideVisible ? 'block' : 'none';
+            guideAdjust.style.display = guideVisible ? 'block' : 'none';
+            toggleGuideBtn.textContent = guideVisible ? 'Masquer le gabarit-guide' : 'Afficher le gabarit-guide';
+            updateGuideTransform();
+        });
+
+        function updateGuideTransform() {
+            const x = guideX.value;
+            const y = guideY.value;
+            const scale = guideScale.value / 100;
+            const rotate = guideRotate.value;
+            const opacity = guideOpacity.value / 100;
+            overlaySvg.style.left = x + 'px';
+            overlaySvg.style.top = y + 'px';
+            overlaySvg.style.transform = 'scale(' + scale + ') rotate(' + rotate + 'deg)';
+            overlaySvg.style.transformOrigin = 'top left';
+            overlaySvg.style.opacity = opacity;
+        }
+
+        [guideX, guideY, guideScale, guideRotate, guideOpacity].forEach(input => {
+            input.addEventListener('input', updateGuideTransform);
+        });
 
         clearBtn.addEventListener('click', () => {
             if (!originalImage) return;
